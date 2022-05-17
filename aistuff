@@ -1,0 +1,37 @@
+import tensorflow as tf
+#no power saver
+for i in range(4):
+    train_input = []
+    train_output = []
+    test_input = []
+    test_output = []
+    trainfile = "trainingdata" + str(i)+ ".txt"
+    with open(trainfile) as file:
+        lines = file.readlines()
+        for line in lines:
+            vals = line.split(",")
+            train_input.append([float(vals[1]), float(vals[2])])
+            train_output.append(float(vals[0]))
+    testfile = "testingdata" + str(i)+ ".txt"
+    with open(testfile) as file:
+        lines = file.readlines()
+        for line in lines:
+            vals = line.split(",")
+            test_input.append([float(vals[1]), float(vals[2])])
+            test_output.append(float(vals[0]))
+    model = tf.keras.Sequential([
+    tf.keras.layers.Dense(10, activation=tf.nn.relu, input_shape=(2,)),  # input shape required
+    tf.keras.layers.Dense(20, activation=tf.nn.relu),
+    tf.keras.layers.Dense(20, activation=tf.nn.relu),
+    tf.keras.layers.Dense(20, activation=tf.nn.relu),
+    tf.keras.layers.Dense(1)
+    ])
+
+    model.compile(optimizer = 'adam', loss = 'mean_squared_error', metrics = ['mean_squared_error'])
+    model.fit(train_input, train_output, epochs=80000)
+    test_loss, test_accuracy = model.evaluate(test_input, test_output)
+    save_string = "ann" + str(i)
+    model.save(save_string, save_format="h5")
+
+
+
