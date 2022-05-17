@@ -3,6 +3,23 @@ import re
 import math
 import pickle
 
+positions = []
+
+
+def kalman_filter(measurments):
+    x = measurments[1]
+    r = ((max(measurments) - min(measurments))/2)
+    r = r*r
+    p = 100
+    last_arr = []
+    for i in range(len(measurments)):
+        k_gain = p/(p + r)
+        x = x + k_gain*(measurments[i] - x)
+        p = (1 - k_gain)*p
+        if i >= (len(measurments) - len(measurments)/10):
+            last_arr.append(x)
+    return (sum(last_arr) / len(last_arr))
+
 
 class Position:
     """Parent class to hold all data."""
@@ -22,6 +39,8 @@ class Position:
         self.devices.append(aux)
         self.calculate_angle()
         self.calculate_distance()
+        for vals in arr:
+            aux.data.kalman_values.append(kalman_filter(vals))
 
     def calculate_angle(self):
         """Calculate angle based on device and dongle position."""
@@ -74,18 +93,14 @@ class Device:
 
 
 class Data:
-    """Stores RSSI values, similates AoA and stores it."""
+    """Store RSSI values, similates AoA and stores it."""
 
     def __init__(self):
         """Class constructor."""
         self.values = []
+        self.kalman_values = []
         self.angle = 0
         self.disance = 0
-
-
-def get_object(fullobject):
-    """TODO will be used to send filled object to other python files or just to save into a doc format."""
-    return fullobject
 
 
 def line_to_array(line):
@@ -95,7 +110,7 @@ def line_to_array(line):
         aux[-1] = aux[-1][:-1]
     aux = list(map(int, aux))
     aux = [i * -1 for i in aux]
-    aux = [aux[i:i + 50] for i in range(0, len(aux), 50)]
+    aux = [aux[i:i + 25] for i in range(0, len(aux), 25)]
     return aux
 
 
@@ -115,52 +130,49 @@ def read_file(file_path, file_name):
     return aux_pos
 
 
-positions = []
+def fill_positions_array():
+    """Fill positions array with data."""
+    aux_position = Position()
+    for file_name in os.listdir("Processed"):
+        file_path = os.path.join("Processed", file_name)
+        if os.path.isfile(file_path):
+            aux_position = read_file(file_path, file_name[:-4])
+            positions.append(aux_position)
+    return positions
 
 
-def main():
-    """Program main function."""
-    print("1: Log data \n2: View data  \n0: Exit")
-    op = input()
-    while op != "0":
-        if op == "1":
-            aux_position = Position()
-            for file_name in os.listdir("Processed"):
-                file_path = os.path.join("Processed", file_name)
-                if os.path.isfile(file_path):
-                    aux_position = read_file(file_path, file_name[:-4])
-                    positions.append(aux_position)
-            print("\n1: Log data \n2: View data  \n0: Exit")
-            op = input()
+def get_full_object():
+    """Export array of objects."""
+    return fill_positions_array()
 
-        if op == "2":
-            print("")
+
+def print_positions(positions, flag=1):
+    """Print all info in positions."""
+    print("")
+    for pos in positions:
+        print("---------")
+        print("Position: X =", pos.x, "Y = ", pos.y)
+        print("Devices:")
+        for device in pos.devices:
+            print(device.address, "X: ", device.dongle_x,
+                  " Y: ", device.dongle_y)
+            print("Angle: ", round(device.data.angle, 2))
+            print("Distance from device: ", round(device.data.distance, 2))
+            print("Kalman filtered values: \n", device.data.kalman_values)
+            if(flag == 2):
+                print(device.data.values)
+
+def print_data_to_file(positions):
+    for i in range(4):
+        with open("training/trainingData" + str(i) + ".txt", "w") as out_file:
+            dist_rssi_arr = []
             for pos in positions:
-                print("---------")
-                print("Position: X =", pos.x, "Y = ", pos.y)
-                print("Devices:")
-                for device in pos.devices:
-                    print(device.address, "X: ", device.dongle_x,
-                          " Y: ", device.dongle_y)
-                    print("Angle: ", device.data.angle)
-                    print("Distance from device: ", device.data.distance)
-                    # print(device.data.values)
-
-            print("\n1: Log data \n2: View data  \n0: Exit")
-            op = input()
-        if op == "3":
-            with open("test.txt", "wb") as out_file:
-                pickle.dump(positions, out_file)
-
-            with open('test.txt', 'rb') as in_file:
-                positions2 = pickle.load(in_file)
-            if(positions == positions2):
-                print("success")
-
-            print("\n1: Log data \n2: View data  \n0: Exit")
-            op = input()
-        if op == "0":
-            break
-
-
-main()
+                device = pos.devices[i]
+                for kalman_val in device.data.kalman_values:
+                    dist_rssi_arr.append([device.data.distance, kalman_val,
+                                          device.data.angle])
+            dist_rssi_arr.sort(key=lambda y: y[0])
+            for value in dist_rssi_arr:
+                printstring = (str(value[0]) + " , " + str(value[1]) + " , " +
+                               str(value[2]) + "\n")
+                out_file.write(printstring)
