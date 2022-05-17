@@ -2,12 +2,11 @@ import os
 import re
 import math
 import pickle
-from statistics import mean
 
 positions = []
 
 
-def KalmanFilter(measurments):
+def kalman_filter(measurments):
     x = measurments[1]
     r = ((max(measurments) - min(measurments))/2)
     r = r*r
@@ -41,7 +40,7 @@ class Position:
         self.calculate_angle()
         self.calculate_distance()
         for vals in arr:
-            aux.data.kalman_values.append(KalmanFilter(vals))
+            aux.data.kalman_values.append(kalman_filter(vals))
 
     def calculate_angle(self):
         """Calculate angle based on device and dongle position."""
@@ -65,6 +64,7 @@ class Position:
             y = self.y - dongle.dongle_y
             distance = math.sqrt((x * x) + (y * y))
             dongle.data.distance = distance
+
 
 class Device:
     """Stores address of beacon and data gathered by it."""
@@ -110,7 +110,7 @@ def line_to_array(line):
         aux[-1] = aux[-1][:-1]
     aux = list(map(int, aux))
     aux = [i * -1 for i in aux]
-    aux = [aux[i:i + 50] for i in range(0, len(aux), 50)]
+    aux = [aux[i:i + 25] for i in range(0, len(aux), 25)]
     return aux
 
 
@@ -162,47 +162,17 @@ def print_positions(positions, flag=1):
             if(flag == 2):
                 print(device.data.values)
 
-
-def main():
-    """Program main function."""
-    print("1: Log data \n2: View data  \n0: Exit")
-    op = input()
-    while op != "0":
-        if op == "1":
-            aux_position = Position()
-            for file_name in os.listdir("Processed"):
-                file_path = os.path.join("Processed", file_name)
-                if os.path.isfile(file_path):
-                    aux_position = read_file(file_path, file_name[:-4])
-                    positions.append(aux_position)
-            print("\n1: Log data \n2: View data  \n0: Exit")
-            op = input()
-
-        if op == "2":
-            print("")
+def print_data_to_file(positions):
+    for i in range(4):
+        with open("training/trainingData" + str(i) + ".txt", "w") as out_file:
+            dist_rssi_arr = []
             for pos in positions:
-                print("---------")
-                print("Position: X =", pos.x, "Y = ", pos.y)
-                print("Devices:")
-                for device in pos.devices:
-                    print(device.address, "X: ", device.dongle_x,
-                          " Y: ", device.dongle_y)
-                    print("Angle: ", device.data.angle)
-                    print("Distance from device: ", device.data.distance)
-                    # print(device.data.values)
-
-            print("\n1: Log data \n2: View data  \n0: Exit")
-            op = input()
-        if op == "3":
-            with open("test.txt", "wb") as out_file:
-                pickle.dump(positions, out_file)
-
-            with open('test.txt', 'rb') as in_file:
-                positions2 = pickle.load(in_file)
-            if(positions == positions2):
-                print("success")
-
-            print("\n1: Log data \n2: View data  \n0: Exit")
-            op = input()
-        if op == "0":
-            break
+                device = pos.devices[i]
+                for kalman_val in device.data.kalman_values:
+                    dist_rssi_arr.append([device.data.distance, kalman_val,
+                                          device.data.angle])
+            dist_rssi_arr.sort(key=lambda y: y[0])
+            for value in dist_rssi_arr:
+                printstring = (str(value[0]) + " , " + str(value[1]) + " , " +
+                               str(value[2]) + "\n")
+                out_file.write(printstring)
