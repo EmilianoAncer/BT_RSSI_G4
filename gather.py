@@ -1,12 +1,13 @@
+"""Imports."""
 import os
 import re
 import math
-import pickle
 
 positions = []
 
 
 def kalman_filter(measurments):
+    """Smooth RSSI value batches."""
     x = measurments[1]
     r = ((max(measurments) - min(measurments))/2)
     r = r*r
@@ -162,7 +163,9 @@ def print_positions(positions, flag=1):
             if(flag == 2):
                 print(device.data.values)
 
+
 def print_data_to_file(positions):
+    """Print a file for each donggle with all its data."""
     for i in range(4):
         with open("training/trainingData" + str(i) + ".txt", "w") as out_file:
             dist_rssi_arr = []
