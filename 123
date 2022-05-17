@@ -1,0 +1,30 @@
+from tensorflow.keras import Sequential
+from tensorflow.keras.layers import Dense
+
+train_input1 = []
+train_input2 = []
+train_output = []
+test_input1 = []
+test_input2 = []
+test_output = []
+with open("trainingData0.txt") as file:
+    lines = file.readlines()
+    for line in lines:
+        vals = line.split(",")
+        train_input1.append(float(vals[0]))
+        train_input2.append(float(vals[1]))
+        train_output.append(float(vals[2]))
+with open("testingData0.txt") as file:
+    lines = file.readlines()
+    for line in lines:
+        vals = line.split(",")
+        test_input1.append(float(vals[0]))
+        test_input2.append(float(vals[1]))
+        test_output.append(float(vals[2]))
+model = Sequential()
+model.add(Dense(10, input_shape=(8,)))
+model.add(Dense(1))
+
+#opt = SGD(learning_rate=0.01, momentum=0.9)
+model.compile(optimizer='sgd', loss='mse')
+#model.fit(X, y, epochs=100, batch_size=32, verbose=0)
