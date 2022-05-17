@@ -2,6 +2,24 @@ import os
 import re
 import math
 import pickle
+from statistics import mean
+
+positions = []
+
+
+def KalmanFilter(measurments):
+    x = measurments[1]
+    r = ((max(measurments) - min(measurments))/2)
+    r = r*r
+    p = 100
+    last_arr = []
+    for i in range(len(measurments)):
+        k_gain = p/(p + r)
+        x = x + k_gain*(measurments[i] - x)
+        p = (1 - k_gain)*p
+        if i >= (len(measurments) - len(measurments)/10):
+            last_arr.append(x)
+    return (sum(last_arr) / len(last_arr))
 
 
 class Position:
@@ -22,6 +40,8 @@ class Position:
         self.devices.append(aux)
         self.calculate_angle()
         self.calculate_distance()
+        for vals in arr:
+            aux.data.kalman_values.append(KalmanFilter(vals))
 
     def calculate_angle(self):
         """Calculate angle based on device and dongle position."""
@@ -45,7 +65,6 @@ class Position:
             y = self.y - dongle.dongle_y
             distance = math.sqrt((x * x) + (y * y))
             dongle.data.distance = distance
-
 
 class Device:
     """Stores address of beacon and data gathered by it."""
@@ -74,18 +93,14 @@ class Device:
 
 
 class Data:
-    """Stores RSSI values, similates AoA and stores it."""
+    """Store RSSI values, similates AoA and stores it."""
 
     def __init__(self):
         """Class constructor."""
         self.values = []
+        self.kalman_values = []
         self.angle = 0
         self.disance = 0
-
-
-def get_object(fullobject):
-    """TODO will be used to send filled object to other python files or just to save into a doc format."""
-    return fullobject
 
 
 def line_to_array(line):
@@ -115,7 +130,37 @@ def read_file(file_path, file_name):
     return aux_pos
 
 
-positions = []
+def fill_positions_array():
+    """Fill positions array with data."""
+    aux_position = Position()
+    for file_name in os.listdir("Processed"):
+        file_path = os.path.join("Processed", file_name)
+        if os.path.isfile(file_path):
+            aux_position = read_file(file_path, file_name[:-4])
+            positions.append(aux_position)
+    return positions
+
+
+def get_full_object():
+    """Export array of objects."""
+    return fill_positions_array()
+
+
+def print_positions(positions, flag=1):
+    """Print all info in positions."""
+    print("")
+    for pos in positions:
+        print("---------")
+        print("Position: X =", pos.x, "Y = ", pos.y)
+        print("Devices:")
+        for device in pos.devices:
+            print(device.address, "X: ", device.dongle_x,
+                  " Y: ", device.dongle_y)
+            print("Angle: ", round(device.data.angle, 2))
+            print("Distance from device: ", round(device.data.distance, 2))
+            print("Kalman filtered values: \n", device.data.kalman_values)
+            if(flag == 2):
+                print(device.data.values)
 
 
 def main():
@@ -161,6 +206,3 @@ def main():
             op = input()
         if op == "0":
             break
-
-
-main()
